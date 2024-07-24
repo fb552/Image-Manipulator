@@ -17,6 +17,8 @@ def get_image_time(image_path):
 
                 if tag_name == 'DateTimeOriginal':
                     return value
+                elif tag_name == 'DateTime':
+                    return value
     except Exception as e:
         print(f"Error retrieving EXIF data from {image_path}: {e}")
     
