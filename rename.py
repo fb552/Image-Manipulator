@@ -2,7 +2,7 @@ import os
 import argparse
 from PIL import Image
 from PIL.ExifTags import TAGS
-from datetime import datetime
+from datetime import datetime, timedelta
 import ffmpeg
 
 def get_image_time(image_path):
@@ -22,20 +22,30 @@ def get_image_time(image_path):
     except Exception as e:
         print(f"Error retrieving EXIF data from {image_path}: {e}")
     
-def get_video_time(video_path):
+def get_video_time(video_path, timezone):
     try:
         probe = ffmpeg.probe(video_path)
-        creation_time = probe['format']['tags'].get('creation_time', None)
+        utc_time_str = probe['format']['tags'].get('creation_time', None)
 
-        if creation_time:
-            return datetime.strptime(creation_time, '%Y-%m-%dT%H:%M:%S.%fZ')
+        if utc_time_str:
+            utc_time = datetime.strptime(utc_time_str, '%Y-%m-%dT%H:%M:%S.%fZ')
+            # Compute local time
+            return utc_time + timedelta(hours=timezone)
         
     except Exception as e:
         print(f"Error retrieving creation time from {video_path}: {e}")
     return None
 
-def rename_files(directory):
+def rename_files(directory, timezone=None):
     supported_formats = ['.jpg', '.jpeg', '.mp4', '.mov', '.avi']
+    video_formats = ['.mp4', '.mov', '.avi']
+
+    if timezone is None:
+        # Check if there are video files in the directory
+        has_videos = any(os.path.splitext(filename)[1].lower() in video_formats for filename in os.listdir(directory))
+        if has_videos:
+            # Prompt user for timezone offset
+            timezone = float(input("Enter the timezone offset from UTC in the format +2, +8, -5, etc.: "))
 
     for filename in os.listdir(directory):
         file_extension = os.path.splitext(filename)[1].lower()
@@ -47,8 +57,8 @@ def rename_files(directory):
             if file_extension in ['.jpg', '.jpeg']:
                 creation_time = get_image_time(file_path)
                 
-            elif file_extension in ['.mp4', '.mov']:
-                creation_time = get_video_time(file_path)
+            elif file_extension in video_formats:
+                creation_time = get_video_time(file_path, timezone)
 
             if creation_time:
                 # Convert creation time to suitable format
