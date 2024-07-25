@@ -26,11 +26,14 @@ def get_video_time(video_path, timezone):
     try:
         probe = ffmpeg.probe(video_path)
         utc_time_str = probe['format']['tags'].get('creation_time', None)
+        duration_str = probe['format'].get('duration', None)
 
-        if utc_time_str:
+        if utc_time_str and duration_str:
             utc_time = datetime.strptime(utc_time_str, '%Y-%m-%dT%H:%M:%S.%fZ')
-            # Compute local time
-            return utc_time + timedelta(hours=timezone)
+            duration = float(duration_str)
+            # Compute local start time by subtracting the duration from creation time and applying the timezone offset
+            local_start_time = utc_time - timedelta(seconds=duration) + timedelta(hours=timezone)
+            return local_start_time
         
     except Exception as e:
         print(f"Error retrieving creation time from {video_path}: {e}")
